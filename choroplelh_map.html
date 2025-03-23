@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    #tooltip {
+      position: absolute;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      display: none;
+    }
+    
+    .county:hover {
+      stroke: black;
+      stroke-width: 1px;
+    }
+    
+    #legend {
+      position: relative;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">United States Educational Attainment</div>
+  <div id="description">Percentage of adults age 25 and older with a bachelor's degree (2010-2014)</div>
+  <div id="tooltip"></div>
+  <div id="legend"></div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+  <script>
+    const educationUrl = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json';
+    const countyUrl = 'https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json';
+
+    Promise.all([d3.json(countyUrl), d3.json(educationUrl)])
+      .then(([countyData, educationData]) => {
+        const width = 960;
+        const height = 600;
+        const padding = { top: 60, right: 20, bottom: 60, left: 20 };
+
+        const svg = d3.select('body')
+          .append('svg')
+          .attr('width', width)
+          .attr('height', height);
+
+        // Projection
+        const projection = d3.geoAlbersUsa()
+          .translate([width / 2, height / 2])
+          .scale(1300);
+
+        const path = d3.geoPath()
+          .projection(projection);
+
+        // Color scale
+        const color = d3.scaleThreshold()
+          .domain(d3.range(2.6, 75.1, (75.1 - 2.6) / 8))
+          .range(d3.schemeBlues[9]);
+
+        // Draw counties
+        svg.append('g')
+          .selectAll('path')
+          .data(topojson.feature(countyData, countyData.objects.counties).features)
+          .enter()
+          .append('path')
+          .attr('class', 'county')
+          .attr('data-fips', d => d.id)
+          .attr('data-education', d => {
+            const county = educationData.find(e => e.fips === d.id);
+            return county ? county.bachelorsOrHigher : 0;
+          })
+          .attr('d', path)
+          .attr('fill', d => {
+            const county = educationData.find(e => e.fips === d.id);
+            return county ? color(county.bachelorsOrHigher) : '#ccc';
+          })
+          .on('mouseover', (event, d) => {
+            const county = educationData.find(e => e.fips === d.id);
+            if (!county) return;
+
+            const tooltip = d3.select('#tooltip');
+            tooltip.style('display', 'block')
+              .style('left', `${event.pageX + 10}px`)
+              .style('top', `${event.pageY + 10}px`)
+              .attr('data-education', county.bachelorsOrHigher)
+              .html(`
+                ${county.area_name}, ${county.state}: ${county.bachelorsOrHigher}%
+              `);
+          })
+          .on('mouseout', () => {
+            d3.select('#tooltip').style('display', 'none');
+          });
+
+        // Legend
+        const legendWidth = 300;
+        const legendHeight = 30;
+        const legendThreshold = d3.scaleThreshold()
+          .domain(color.domain())
+          .range(color.range());
+
+        const legendX = d3.scaleLinear()
+          .domain([2.6, 75.1])
+          .range([0, legendWidth]);
+
+        const legendAxis = d3.axisBottom(legendX)
+          .tickValues(color.domain())
+          .tickFormat(d => `${Math.round(d)}%`);
+
+        const legend = d3.select('#legend')
+          .append('svg')
+          .attr('width', legendWidth + 40)
+          .attr('height', legendHeight + 40);
+
+        legend.append('g')
+          .selectAll('rect')
+          .data(color.range().map(d => color.invertExtent(d)))
+          .enter()
+          .append('rect')
+          .attr('x', d => legendX(d[0]))
+          .attr('y', 0)
+          .attr('width', d => legendX(d[1]) - legendX(d[0]))
+          .attr('height', legendHeight)
+          .attr('fill', d => color(d[0]));
+
+        legend.append('g')
+          .attr('transform', `translate(0, ${legendHeight})`)
+          .call(legendAxis);
+
+      }).catch(err => console.error(err));
+  </script>
+</body>
+</html>

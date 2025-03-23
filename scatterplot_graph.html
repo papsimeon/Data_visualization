@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagramme de dispersion D3</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        svg { width: 100%; height: 500px; }
+        .axis-label { font-size: 14px; font-weight: bold; }
+        .dot { opacity: 0.8; }
+        .legend { font-size: 12px; }
+    </style>
+</head>
+<body>
+    <svg id="chart"></svg>
+    <script>
+        const data = [
+            {year: 1994, time: 39.45, doping: false},
+            {year: 1995, time: 39.30, doping: true},
+            {year: 1996, time: 39.15, doping: false},
+            {year: 1997, time: 39.00, doping: true},
+            {year: 1998, time: 38.45, doping: false},
+            {year: 2000, time: 38.30, doping: true},
+            {year: 2004, time: 38.15, doping: false},
+            {year: 2006, time: 38.00, doping: true},
+            {year: 2010, time: 37.45, doping: false},
+            {year: 2015, time: 37.30, doping: true}
+        ];
+
+        const margin = {top: 20, right: 30, bottom: 50, left: 60},
+              width = 800 - margin.left - margin.right,
+              height = 500 - margin.top - margin.bottom;
+
+        const svg = d3.select("#chart")
+                      .attr("width", width + margin.left + margin.right)
+                      .attr("height", height + margin.top + margin.bottom)
+                      .append("g")
+                      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const x = d3.scaleLinear().domain([1990, 2020]).range([0, width]);
+        const y = d3.scaleLinear().domain([37, 40]).range([height, 0]);
+
+        svg.append("g")
+           .attr("transform", `translate(0,${height})`)
+           .call(d3.axisBottom(x).tickFormat(d3.format("d")));
+
+        svg.append("g")
+           .call(d3.axisLeft(y));
+
+        svg.selectAll("circle")
+           .data(data)
+           .enter()
+           .append("circle")
+           .attr("cx", d => x(d.year))
+           .attr("cy", d => y(d.time))
+           .attr("r", 6)
+           .attr("class", "dot")
+           .attr("fill", d => d.doping ? "steelblue" : "orange");
+
+        svg.append("text")
+           .attr("transform", "rotate(-90)")
+           .attr("y", -40)
+           .attr("x", -height / 2)
+           .attr("class", "axis-label")
+           .text("Time in Minutes");
+
+        const legend = svg.append("g")
+                          .attr("transform", `translate(${width - 100}, 20)`);
+
+        legend.append("rect")
+              .attr("width", 20)
+              .attr("height", 20)
+              .attr("fill", "orange");
+        legend.append("text")
+              .attr("x", 30)
+              .attr("y", 15)
+              .attr("class", "legend")
+              .text("No doping allegations");
+
+        legend.append("rect")
+              .attr("y", 30)
+              .attr("width", 20)
+              .attr("height", 20)
+              .attr("fill", "steelblue");
+        legend.append("text")
+              .attr("x", 30)
+              .attr("y", 45)
+              .attr("class", "legend")
+              .text("Riders with doping allegations");
+    </script>
+</body>
+</html>

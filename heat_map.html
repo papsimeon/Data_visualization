@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    .cell:hover { stroke: black; }
+    #tooltip {
+      position: absolute;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      border-radius: 5px;
+      pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="title">Monthly Global Land-Surface Temperature</div>
+  <div id="description">1753 - 2015: base temperature 8.66℃</div>
+  <div id="tooltip"></div>
+  
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const url = 'https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json';
+
+    d3.json(url).then(data => {
+      const baseTemp = data.baseTemperature;
+      const dataset = data.monthlyVariance;
+
+      const width = 1200;
+      const height = 600;
+      const padding = { top: 60, right: 60, bottom: 100, left: 100 };
+
+      const svg = d3.select('body')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      // Échelles
+      const xScale = d3.scaleBand()
+        .domain(dataset.map(d => d.year))
+        .range([padding.left, width - padding.right]);
+
+      const yScale = d3.scaleBand()
+        .domain([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
+        .range([padding.top, height - padding.bottom]);
+
+      const colorScale = d3.scaleQuantile()
+        .domain(dataset.map(d => baseTemp + d.variance))
+        .range(["#313695", "#4575b4", "#74add1", "#abd9e9", "#e0f3f8", 
+                "#ffffbf", "#fee090", "#fdae61", "#f46d43", "#d73027", "#a50026"]);
+
+      // Axes
+      const xAxis = d3.axisBottom(xScale)
+        .tickValues(xScale.domain().filter(year => year % 10 === 0))
+        .tickFormat(d3.format('d'));
+
+      const yAxis = d3.axisLeft(yScale)
+        .tickFormat(month => {
+          const date = new Date(0);
+          date.setUTCMonth(month);
+          return d3.timeFormat('%B')(date);
+        });
+
+      svg.append('g')
+        .attr('id', 'x-axis')
+        .attr('transform', `translate(0, ${height - padding.bottom})`)
+        .call(xAxis);
+
+      svg.append('g')
+        .attr('id', 'y-axis')
+        .attr('transform', `translate(${padding.left}, 0)`)
+        .call(yAxis);
+
+      // Cells
+      svg.selectAll('.cell')
+        .data(dataset)
+        .enter()
+        .append('rect')
+        .attr('class', 'cell')
+        .attr('data-month', d => d.month - 1)
+        .attr('data-year', d => d.year)
+        .attr('data-temp', d => baseTemp + d.variance)
+        .attr('x', d => xScale(d.year))
+        .attr('y', d => yScale(d.month - 1))
+        .attr('width', xScale.bandwidth())
+        .attr('height', yScale.bandwidth())
+        .attr('fill', d => colorScale(baseTemp + d.variance))
+        .on('mouseover', (event, d) => {
+          const tooltip = d3.select('#tooltip');
+          tooltip.style('display', 'block')
+            .style('left', `${event.pageX + 10}px`)
+            .style('top', `${event.pageY + 10}px`)
+            .attr('data-year', d.year)
+            .html(`
+              ${d.year} - ${new Date(0, d.month - 1).toLocaleString('default', {month: 'long'})}<br>
+              Temp: ${(baseTemp + d.variance).toFixed(2)}℃<br>
+              Variance: ${d.variance.toFixed(2)}℃
+            `);
+        })
+        .on('mouseout', () => {
+          d3.select('#tooltip').style('display', 'none');
+        });
+
+      // Légende
+      const legendWidth = 300;
+      const legendHeight = 30;
+      
+      const legend = svg.append('g')
+        .attr('id', 'legend')
+        .attr('transform', `translate(${padding.left}, ${height - 50})`);
+
+      const legendScale = d3.scaleLinear()
+        .domain(d3.extent(dataset.map(d => baseTemp + d.variance)))
+        .range([0, legendWidth]);
+
+      legend.selectAll('rect')
+        .data(colorScale.range())
+        .enter()
+        .append('rect')
+        .attr('x', (d, i) => legendScale(colorScale.invertExtent(d)[0]))
+        .attr('y', 0)
+        .attr('width', (d, i) => legendWidth / colorScale.range().length)
+        .attr('height', legendHeight)
+        .attr('fill', d => d);
+
+    }).catch(err => console.error(err));
+  </script>
+</body>
+</html>
